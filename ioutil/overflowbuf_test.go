@@ -90,6 +90,7 @@ func TestReleaseOverflowBufferToPool(t *testing.T) {
 		nread: 100,
 		fWrite: fWrite,
 		fRead: fRead,
+		eof: true,
 	}
 
 	ob.Close()
@@ -110,6 +111,9 @@ func TestReleaseOverflowBufferToPool(t *testing.T) {
 	}
 	if ob.fRead != nil {
 		t.Errorf(testName+" (5): Expected f to be nil, got file with name %s", ob.fRead.Name())
+	}
+	if ob.eof {
+		t.Error(testName+" (6): Expected eof to be false")
 	}
 }
 

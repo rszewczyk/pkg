@@ -23,6 +23,7 @@ type OverflowBuffer struct {
 	buf           []byte
 	nwrote, nread int
 	fWrite, fRead *os.File
+	eof bool
 }
 
 // GetOverflowBufferFromPool returns an OverflowBuffer with the given Capacity, Dir and Prefix from a sync.Pool
@@ -45,6 +46,7 @@ func ReleaseOverflowBufferToPool(ob *OverflowBuffer) {
 	ob.fWrite = nil
 	ob.fRead = nil
 	freeOverflowBuffers.Put(ob)
+	ob.eof = false
 }
 
 // Read implements io.Reader
@@ -55,12 +57,17 @@ func (ob *OverflowBuffer) Read(p []byte) (nread int, err error) {
 		}
 	}()
 
+	if ob.eof {
+		err = io.EOF
+		return
+	}
+
 	nread = copy(p, ob.buf[ob.nread:])
 	ob.nread += nread
 
 	if len(p) > nread {
 		if ob.fWrite == nil {
-			err = io.EOF
+			ob.eof = true
 			return
 		}
 		if ob.fRead == nil {
@@ -123,6 +130,7 @@ func (ob *OverflowBuffer) Close() (err error) {
 // ResetRead will set the buffer to read from the beginning.
 func (ob *OverflowBuffer) ResetRead() error {
 	ob.nread = 0
+	ob.eof = false
 	if ob.fRead != nil {
 		_, err := ob.fRead.Seek(0, 0)
 		if err != nil {
