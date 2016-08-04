@@ -126,3 +126,16 @@ func (ob *OverflowBuffer) Close() (err error) {
 	}
 	return
 }
+
+// ResetRead will set the buffer to read from the beginning. Note that clients don't need to call ResetRead to Read after Write. It is needed to Read the buffer a second time.
+func (ob *OverflowBuffer) ResetRead() error {
+	ob.nread = 0
+	ob.fileReset = true
+	if ob.f != nil {
+		_, err := ob.f.Seek(0, 0)
+		if err != nil {
+			return fmt.Errorf("OverflowBuffer.ResetRead: %s", err)
+		}
+	}
+	return nil
+}

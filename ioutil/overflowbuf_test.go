@@ -143,6 +143,10 @@ func TestOverflowBufferBasicOperations(t *testing.T) {
 
 	check(t, testName+" (7)", ob, append(p1, p2...))
 
+	ob.ResetRead()
+
+	check(t, testName+" (8)", ob, append(p1, p2...))
+
 	cleanup(t, testName, ob)
 }
 
@@ -206,6 +210,8 @@ func TestRandomWrites(t *testing.T) {
 		n := capacity
 		testName := fmt.Sprintf("TestRandomWrites loop (%d), capacity == %d, p == %s, n == %d", i, capacity, string(p), n)
 		r := fill(t, testName, ob, p, n)
+		check(t, testName, ob, r)
+		ob.ResetRead()
 		check(t, testName, ob, r)
 		cleanup(t, testName, ob)
 	}
