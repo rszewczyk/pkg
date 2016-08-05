@@ -1,4 +1,3 @@
-// package ioutil provides additional io related helpers beyond what can be found in the go standard library
 package ioutil
 
 import (
@@ -7,6 +6,7 @@ import (
 	"io/ioutil"
 	"fmt"
 	"io"
+	"errors"
 )
 
 var freeOverflowBuffers = sync.Pool{
@@ -16,14 +16,14 @@ var freeOverflowBuffers = sync.Pool{
 // OverflowBuffer is a byte buffer that overflows to disk when its capacity has been reached
 type OverflowBuffer struct {
 	// Capacity is the number of bytes that the buffer will hold before writing to disk
-	Capacity      int
+	Capacity                             int
 	// Dir and Prefix control the location of the backing files in the same manner as the standard library's ioutil.TempFile
-	Dir, Prefix   string
+	Dir, Prefix                          string
 
-	buf           []byte
-	nwrote, nread int
-	fWrite, fRead *os.File
-	eof bool
+	buf                                  []byte
+	nwrote, nread                        int
+	f                                    *os.File
+	eof, fileWasResetForRead, readCalled bool
 }
 
 // GetOverflowBufferFromPool returns an OverflowBuffer with the given Capacity, Dir and Prefix from a sync.Pool
@@ -35,7 +35,7 @@ func GetOverflowBufferFromPool(capacity int, dir, prefix string) *OverflowBuffer
 	return fb
 }
 
-// ReleaseOverflowBufferToPool will return small capacity buffers to a sync.Pool
+// ReleaseOverflowBufferToPool will zero out and return small capacity buffers to a sync.Pool
 func ReleaseOverflowBufferToPool(ob *OverflowBuffer) {
 	if cap(ob.buf) > 2048 {
 		return
@@ -43,14 +43,16 @@ func ReleaseOverflowBufferToPool(ob *OverflowBuffer) {
 	ob.buf = ob.buf[:0]
 	ob.nwrote = 0
 	ob.nread = 0
-	ob.fWrite = nil
-	ob.fRead = nil
+	ob.f = nil
 	freeOverflowBuffers.Put(ob)
 	ob.eof = false
+	ob.fileWasResetForRead = false
+	ob.readCalled = false
 }
 
-// Read implements io.Reader
+// Read implements io.Reader. After calling Read, subsequent calls to Write will return an error
 func (ob *OverflowBuffer) Read(p []byte) (nread int, err error) {
+	ob.readCalled = true
 	defer func() {
 		if err != nil && err != io.EOF {
 			err = fmt.Errorf("OverflowBuffer.Read: %s", err)
@@ -66,31 +68,37 @@ func (ob *OverflowBuffer) Read(p []byte) (nread int, err error) {
 	ob.nread += nread
 
 	if len(p) > nread {
-		if ob.fWrite == nil {
+		if ob.f == nil {
 			ob.eof = true
 			return
 		}
-		if ob.fRead == nil {
-			ob.fRead, err = os.Open(ob.fWrite.Name())
+		if !ob.fileWasResetForRead {
+			ob.fileWasResetForRead = true
+			_, err = ob.f.Seek(0, 0)
 			if err != nil {
 				return
 			}
 		}
 		var n int
-		n, err = ob.fRead.Read(p[nread:])
+		n, err = ob.f.Read(p[nread:])
 		nread += n
 	}
 
 	return
 }
 
-// Write implements io.Writer
+// Write implements io.Writer. Calling Write after a call to Read will return an Error
 func (ob *OverflowBuffer) Write(p []byte) (nwrote int, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("OverflowBuffer.Write: %s", err)
 		}
 	}()
+
+	if ob.readCalled {
+		err = errors.New("Write called after Read")
+		return
+	}
 
 	nwrote = ob.Capacity - ob.nwrote
 	if nwrote > len(p) {
@@ -101,14 +109,14 @@ func (ob *OverflowBuffer) Write(p []byte) (nwrote int, err error) {
 	ob.nwrote += nwrote
 
 	if len(p) > nwrote {
-		if ob.fWrite == nil {
-			ob.fWrite, err = ioutil.TempFile(ob.Dir, ob.Prefix)
+		if ob.f == nil {
+			ob.f, err = ioutil.TempFile(ob.Dir, ob.Prefix)
 			if err != nil {
 				return
 			}
 		}
 		var n int
-		n, err = ob.fWrite.Write(p[nwrote:])
+		n, err = ob.f.Write(p[nwrote:])
 		nwrote += n
 	}
 
@@ -117,25 +125,9 @@ func (ob *OverflowBuffer) Write(p []byte) (nwrote int, err error) {
 
 // Close implements io.Closer. Calling Close will remove any backing file that was created as a result of overflowing the capacity.
 func (ob *OverflowBuffer) Close() (err error) {
-	if ob.fRead != nil {
-		ob.fRead.Close()
-	}
-	if ob.fWrite != nil {
-		ob.fWrite.Close()
-		err = os.Remove(ob.fWrite.Name())
+	if ob.f != nil {
+		ob.f.Close()
+		err = os.Remove(ob.f.Name())
 	}
 	return
-}
-
-// ResetRead will set the buffer to read from the beginning.
-func (ob *OverflowBuffer) ResetRead() error {
-	ob.nread = 0
-	ob.eof = false
-	if ob.fRead != nil {
-		_, err := ob.fRead.Seek(0, 0)
-		if err != nil {
-			return fmt.Errorf("OverflowBuffer.ResetRead: %s", err)
-		}
-	}
-	return nil
 }

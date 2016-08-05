@@ -39,8 +39,8 @@ func fill(t *testing.T, testName string, ob *OverflowBuffer, p []byte, n int) (r
 
 func cleanup(t *testing.T, testName string, ob *OverflowBuffer) {
 	var fnWrite string
-	if ob.fWrite != nil {
-		fnWrite = ob.fWrite.Name()
+	if ob.f != nil {
+		fnWrite = ob.f.Name()
 	}
 	err := ob.Close()
 	if err != nil {
@@ -82,14 +82,12 @@ func TestGetOverflowBufferFromPool(t *testing.T) {
 func TestReleaseOverflowBufferToPool(t *testing.T) {
 	testName := "TestReleaseOverflowBufferToPool"
 	fWrite, _ := ioutil.TempFile("", "")
-	fRead, _ := os.Open(fWrite.Name())
 
 	ob := &OverflowBuffer{
 		buf: make([]byte, 100, 100),
 		nwrote: 100,
 		nread: 100,
-		fWrite: fWrite,
-		fRead: fRead,
+		f: fWrite,
 		eof: true,
 	}
 
@@ -106,14 +104,17 @@ func TestReleaseOverflowBufferToPool(t *testing.T) {
 	if ob.nwrote != 0 {
 		t.Errorf(testName+" (3): Expected nwrote to be zero, got %d", ob.nwrote)
 	}
-	if ob.fWrite != nil {
-		t.Errorf(testName+" (4): Expected f to be nil, got file with name %s", ob.fWrite.Name())
-	}
-	if ob.fRead != nil {
-		t.Errorf(testName+" (5): Expected f to be nil, got file with name %s", ob.fRead.Name())
+	if ob.f != nil {
+		t.Errorf(testName+" (4): Expected f to be nil, got file with name %s", ob.f.Name())
 	}
 	if ob.eof {
-		t.Error(testName+" (6): Expected eof to be false")
+		t.Error(testName+" (5): Expected eof to be false")
+	}
+	if ob.fileWasResetForRead {
+		t.Errorf(testName+" (6): Expected resetForRead to be false")
+	}
+	if ob.readCalled {
+		t.Errorf(testName+" (7): Expected readCalled to be false")
 	}
 }
 
@@ -130,8 +131,8 @@ func TestOverflowBufferBasicOperations(t *testing.T) {
 		t.Errorf(testName+" (2): err should be nil, found err == %s", err)
 	}
 
-	if ob.fWrite != nil {
-		t.Errorf(testName+" (3): expected ob.f to be nil, found a file with name == %s", ob.fWrite.Name())
+	if ob.f != nil {
+		t.Errorf(testName+" (3): expected ob.f to be nil, found a file with name == %s", ob.f.Name())
 	}
 
 	n, err = ob.Write(p2)
@@ -142,15 +143,15 @@ func TestOverflowBufferBasicOperations(t *testing.T) {
 		t.Errorf(testName+" (5): err should be nil, found err == %s", err)
 	}
 
-	if ob.fWrite == nil {
+	if ob.f == nil {
 		t.Errorf(testName+" (6): expected ob.f to be non nil")
 	}
 
 	check(t, testName+" (7)", ob, append(p1, p2...))
 
-	ob.ResetRead()
-
-	check(t, testName+" (8)", ob, append(p1, p2...))
+	if _, err = ob.Write(p2); err == nil {
+		t.Errorf(testName+" (7): expected err to be non nil")
+	}
 
 	cleanup(t, testName, ob)
 }
@@ -168,8 +169,8 @@ func TestOverflowBufferWriteCrossesFileBoundary(t *testing.T) {
 		t.Errorf(testName+" (2): err should be nil, found err == %s", err)
 	}
 
-	if ob.fWrite != nil {
-		t.Errorf(testName+" (3): expected ob.f to be nil, found a file with name == %s", ob.fWrite.Name())
+	if ob.f != nil {
+		t.Errorf(testName+" (3): expected ob.f to be nil, found a file with name == %s", ob.f.Name())
 	}
 
 	n, err = ob.Write(p2)
@@ -180,7 +181,7 @@ func TestOverflowBufferWriteCrossesFileBoundary(t *testing.T) {
 		t.Errorf(testName+" (5): err should be nil, found err == %s", err)
 	}
 
-	if ob.fWrite == nil {
+	if ob.f == nil {
 		t.Errorf(testName+" (6): expected ob.f to be non nil")
 	}
 
@@ -215,8 +216,6 @@ func TestRandomWrites(t *testing.T) {
 		n := capacity
 		testName := fmt.Sprintf("TestRandomWrites loop (%d), capacity == %d, p == %s, n == %d", i, capacity, string(p), n)
 		r := fill(t, testName, ob, p, n)
-		check(t, testName, ob, r)
-		ob.ResetRead()
 		check(t, testName, ob, r)
 		cleanup(t, testName, ob)
 	}
