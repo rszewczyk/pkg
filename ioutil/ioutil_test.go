@@ -1,10 +1,10 @@
 package ioutil
 
 import (
-	"testing"
-	"errors"
 	"bytes"
+	"errors"
 	"io/ioutil"
+	"testing"
 )
 
 func TestReadCloser(t *testing.T) {

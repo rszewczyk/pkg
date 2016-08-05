@@ -1,12 +1,12 @@
 package ioutil
 
 import (
-	"testing"
-	"io/ioutil"
 	"bytes"
-	"os"
-	"math/rand"
 	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"testing"
 )
 
 func check(t *testing.T, testName string, ob *OverflowBuffer, pp []byte) {
@@ -54,8 +54,8 @@ func cleanup(t *testing.T, testName string, ob *OverflowBuffer) {
 }
 
 func TestGetOverflowBufferFromPool(t *testing.T) {
-	tests := []struct{
-		capacity int
+	tests := []struct {
+		capacity    int
 		prefix, dir string
 	}{
 		{13, "foo", "/bar"},
@@ -84,11 +84,11 @@ func TestReleaseOverflowBufferToPool(t *testing.T) {
 	fWrite, _ := ioutil.TempFile("", "")
 
 	ob := &OverflowBuffer{
-		buf: make([]byte, 100, 100),
+		buf:    make([]byte, 100, 100),
 		nwrote: 100,
-		nread: 100,
-		f: fWrite,
-		eof: true,
+		nread:  100,
+		f:      fWrite,
+		eof:    true,
 	}
 
 	ob.Close()
@@ -108,19 +108,19 @@ func TestReleaseOverflowBufferToPool(t *testing.T) {
 		t.Errorf(testName+" (4): Expected f to be nil, got file with name %s", ob.f.Name())
 	}
 	if ob.eof {
-		t.Error(testName+" (5): Expected eof to be false")
+		t.Error(testName + " (5): Expected eof to be false")
 	}
 	if ob.fileWasResetForRead {
-		t.Errorf(testName+" (6): Expected resetForRead to be false")
+		t.Errorf(testName + " (6): Expected resetForRead to be false")
 	}
 	if ob.readCalled {
-		t.Errorf(testName+" (7): Expected readCalled to be false")
+		t.Errorf(testName + " (7): Expected readCalled to be false")
 	}
 }
 
 func TestOverflowBufferBasicOperations(t *testing.T) {
 	testName := "TestOverflowBufferBasicOperations"
-	ob := &OverflowBuffer{ Capacity: 4 }
+	ob := &OverflowBuffer{Capacity: 4}
 
 	p1, p2 := []byte("abcd"), []byte("efgh")
 	n, err := ob.Write(p1)
@@ -144,13 +144,13 @@ func TestOverflowBufferBasicOperations(t *testing.T) {
 	}
 
 	if ob.f == nil {
-		t.Errorf(testName+" (6): expected ob.f to be non nil")
+		t.Errorf(testName + " (6): expected ob.f to be non nil")
 	}
 
 	check(t, testName+" (7)", ob, append(p1, p2...))
 
 	if _, err = ob.Write(p2); err == nil {
-		t.Errorf(testName+" (7): expected err to be non nil")
+		t.Errorf(testName + " (7): expected err to be non nil")
 	}
 
 	cleanup(t, testName, ob)
@@ -158,7 +158,7 @@ func TestOverflowBufferBasicOperations(t *testing.T) {
 
 func TestOverflowBufferWriteCrossesFileBoundary(t *testing.T) {
 	testName := "TestWriteCrossesFileBoundary"
-	ob := &OverflowBuffer{ Capacity: 10 }
+	ob := &OverflowBuffer{Capacity: 10}
 
 	p1, p2 := []byte("abcdef"), []byte("ghijklmn")
 	n, err := ob.Write(p1)
@@ -182,7 +182,7 @@ func TestOverflowBufferWriteCrossesFileBoundary(t *testing.T) {
 	}
 
 	if ob.f == nil {
-		t.Errorf(testName+" (6): expected ob.f to be non nil")
+		t.Errorf(testName + " (6): expected ob.f to be non nil")
 	}
 
 	check(t, testName+" (7)", ob, append(p1, p2...))
@@ -191,7 +191,7 @@ func TestOverflowBufferWriteCrossesFileBoundary(t *testing.T) {
 
 func TestLongWriteLongBuffer(t *testing.T) {
 	testName := "TestLongWrite"
-	ob := &OverflowBuffer{ Capacity: 4000 }
+	ob := &OverflowBuffer{Capacity: 4000}
 	r1 := fill(t, testName, ob, []byte("abcdefgh"), 500)
 	r2 := fill(t, testName, ob, []byte("ijklmnop"), 500)
 	check(t, testName, ob, append(r1, r2...))
@@ -199,7 +199,7 @@ func TestLongWriteLongBuffer(t *testing.T) {
 
 func TestLongWriteShortBuffer(t *testing.T) {
 	testName := "TestShortBuffer"
-	ob := &OverflowBuffer{ Capacity: 10 }
+	ob := &OverflowBuffer{Capacity: 10}
 	r1 := fill(t, testName, ob, []byte("abcdefgh"), 500)
 	r2 := fill(t, testName, ob, []byte("ijklmnop"), 500)
 	check(t, testName, ob, append(r1, r2...))
@@ -209,9 +209,9 @@ func TestRandomWrites(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		var p []byte
 		capacity := rand.Intn(1000) + 1
-		ob := &OverflowBuffer{ Capacity: capacity }
-		for i := 0; i < rand.Intn(10) + 1; i++ {
-			p = append(p, 'a' + byte(rand.Intn(26)))
+		ob := &OverflowBuffer{Capacity: capacity}
+		for j := 0; j < rand.Intn(10)+1; j++ {
+			p = append(p, 'a'+byte(rand.Intn(26)))
 		}
 		n := capacity
 		testName := fmt.Sprintf("TestRandomWrites loop (%d), capacity == %d, p == %s, n == %d", i, capacity, string(p), n)
@@ -223,8 +223,8 @@ func TestRandomWrites(t *testing.T) {
 
 func TestZeroLengthRead(t *testing.T) {
 	buffers := []*OverflowBuffer{
-		{ Capacity: 0 },
-		{ Capacity: 100 },
+		{Capacity: 0},
+		{Capacity: 100},
 	}
 
 	for _, buf := range buffers {

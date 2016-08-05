@@ -1,12 +1,12 @@
 package ioutil
 
 import (
-	"os"
-	"sync"
-	"io/ioutil"
+	"errors"
 	"fmt"
 	"io"
-	"errors"
+	"io/ioutil"
+	"os"
+	"sync"
 )
 
 var freeOverflowBuffers = sync.Pool{
@@ -16,9 +16,9 @@ var freeOverflowBuffers = sync.Pool{
 // OverflowBuffer is a byte buffer that overflows to disk when its capacity has been reached
 type OverflowBuffer struct {
 	// Capacity is the number of bytes that the buffer will hold before writing to disk
-	Capacity                             int
+	Capacity int
 	// Dir and Prefix control the location of the backing files in the same manner as the standard library's ioutil.TempFile
-	Dir, Prefix                          string
+	Dir, Prefix string
 
 	buf                                  []byte
 	nwrote, nread                        int
