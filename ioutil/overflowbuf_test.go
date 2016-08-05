@@ -189,23 +189,23 @@ func TestOverflowBufferWriteCrossesFileBoundary(t *testing.T) {
 	cleanup(t, testName, ob)
 }
 
-func TestLongWriteLongBuffer(t *testing.T) {
-	testName := "TestLongWrite"
+func TestOverflowBufferLongWriteLongBuffer(t *testing.T) {
+	testName := "TestOverflowBufferLongWriteLongBuffer"
 	ob := &OverflowBuffer{Capacity: 4000}
 	r1 := fill(t, testName, ob, []byte("abcdefgh"), 500)
 	r2 := fill(t, testName, ob, []byte("ijklmnop"), 500)
 	check(t, testName, ob, append(r1, r2...))
 }
 
-func TestLongWriteShortBuffer(t *testing.T) {
-	testName := "TestShortBuffer"
+func TestOverflowBufferLongWriteShortBuffer(t *testing.T) {
+	testName := "TestOverflowBufferLongWriteShortBuffer"
 	ob := &OverflowBuffer{Capacity: 10}
 	r1 := fill(t, testName, ob, []byte("abcdefgh"), 500)
 	r2 := fill(t, testName, ob, []byte("ijklmnop"), 500)
 	check(t, testName, ob, append(r1, r2...))
 }
 
-func TestRandomWrites(t *testing.T) {
+func TestOverflowBufferRandomWrites(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		var p []byte
 		capacity := rand.Intn(1000) + 1
@@ -214,14 +214,14 @@ func TestRandomWrites(t *testing.T) {
 			p = append(p, 'a'+byte(rand.Intn(26)))
 		}
 		n := capacity
-		testName := fmt.Sprintf("TestRandomWrites loop (%d), capacity == %d, p == %s, n == %d", i, capacity, string(p), n)
+		testName := fmt.Sprintf("TestOverflowBufferRandomWritesloop (%d), capacity == %d, p == %s, n == %d", i, capacity, string(p), n)
 		r := fill(t, testName, ob, p, n)
 		check(t, testName, ob, r)
 		cleanup(t, testName, ob)
 	}
 }
 
-func TestZeroLengthRead(t *testing.T) {
+func TestOverflowBufferZeroLengthRead(t *testing.T) {
 	buffers := []*OverflowBuffer{
 		{Capacity: 0},
 		{Capacity: 100},
@@ -230,7 +230,7 @@ func TestZeroLengthRead(t *testing.T) {
 	for _, buf := range buffers {
 		_, err := ioutil.ReadAll(buf)
 		if err != nil {
-			t.Errorf("TestZeroLengthRead: expected err to be nil, got %s", err)
+			t.Errorf("TestOverflowBufferZeroLengthRead: expected err to be nil, got %s", err)
 		}
 	}
 }
