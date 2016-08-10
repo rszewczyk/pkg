@@ -16,8 +16,6 @@ type handlerChain struct {
 // ServeHTTP implements the http.Handler interface
 func (h *handlerChain) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	crw := &chainResponseWriter{ResponseWriter: w}
-
-	// call each handler in turn, stopping when a response has been written
 	for _, h := range h.handlers {
 		h.ServeHTTP(crw, r)
 		if crw.written {
