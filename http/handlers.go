@@ -9,21 +9,6 @@ import (
 // DeadlineHeaderKey is used as the key for the Deadline header
 const DeadlineHeaderKey = "Deadline"
 
-// HandlerWrapper accepts an http.Handler and returns an http.Handler for the purpose of adding functionality
-type HandlerWrapper func(http.Handler) http.Handler
-
-// ComposeHandlerWrappers returns a HandlerWrapper that is the result of composing the given wrappers. They
-// are applied in right to left argument order - i.e. the last wrapper argument is the "inner" wrapper
-func ComposeHandlerWrappers(wrappers ...HandlerWrapper) HandlerWrapper {
-	return func(hIn http.Handler) (hOut http.Handler) {
-		hOut = hIn
-		for i := len(wrappers) - 1; i >= 0; i-- {
-			hOut = wrappers[i](hOut)
-		}
-		return
-	}
-}
-
 func writeErr(w http.ResponseWriter, code int) {
 	http.Error(w, http.StatusText(code), code)
 }

@@ -25,36 +25,6 @@ func TestLengthRequiredHandler(t *testing.T) {
 	}
 }
 
-func stringSlicesAreEqual(first, second []string) bool {
-	if first == nil && second == nil {
-		return true
-	}
-	if len(first) != len(second) {
-		return false
-	}
-	for i, s := range first {
-		if second[i] != s {
-			return false
-		}
-	}
-	return true
-}
-
-func intSlicesAreEqual(first, second []int) bool {
-	if first == nil && second == nil {
-		return true
-	}
-	if len(first) != len(second) {
-		return false
-	}
-	for i, s := range first {
-		if second[i] != s {
-			return false
-		}
-	}
-	return true
-}
-
 func TestAllowedHandler(t *testing.T) {
 	testName := "TestAllowedHandler"
 
@@ -124,32 +94,17 @@ func TestDeadlineHandlerWithoutHeader(t *testing.T) {
 	DeadlineHandler(h).ServeHTTP(httptest.NewRecorder(), r)
 }
 
-func TestComposeHandlerWrappers(t *testing.T) {
-	testName := "TestComposeHandlerWrappers"
-
-	var (
-		expectedOrder []int
-		wrappers      []HandlerWrapper
-		wasCalled     bool
-	)
-	actualOrder := new(callOrder)
-	for i := 0; i < 10; i++ {
-		expectedOrder = append(expectedOrder, i)
-		wrappers = append(wrappers, actualOrder.wrapper(i))
+func stringSlicesAreEqual(first, second []string) bool {
+	if first == nil && second == nil {
+		return true
 	}
-
-	// wrapper handler should be last
-	expectedOrder = append(expectedOrder, 11)
-
-	ComposeHandlerWrappers(wrappers...)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		wasCalled = true
-		*actualOrder = append(*actualOrder, 11)
-	})).ServeHTTP(httptest.NewRecorder(), &http.Request{})
-
-	if !wasCalled {
-		t.Error(testName + " (1): wrapped handler was not called")
+	if len(first) != len(second) {
+		return false
 	}
-	if !intSlicesAreEqual(expectedOrder, *actualOrder) {
-		t.Errorf("%s: (2): Expected call order was %v, got %v", testName, expectedOrder, *actualOrder)
+	for i, s := range first {
+		if second[i] != s {
+			return false
+		}
 	}
+	return true
 }
