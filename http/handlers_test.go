@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -65,24 +66,31 @@ func TestAllowedHandler(t *testing.T) {
 func TestDeadlineHandlerWithHeader(t *testing.T) {
 	testName := "TestDeadlineHandlerWithHeader"
 
+	handlerWasCalled := false
 	expectedDeadline := time.Now().Add(10 * time.Minute)
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if actualDeadline, ok := r.Context().Deadline(); !ok || expectedDeadline != actualDeadline {
-			t.Errorf("%s: expected deadline to be %v, got %v", testName, expectedDeadline, actualDeadline)
+		handlerWasCalled = true
+		if actualDeadline, ok := r.Context().Deadline(); !ok || expectedDeadline.Equal(actualDeadline) {
+			t.Errorf("%s: expected deadline to be %s, got %s", testName, expectedDeadline.UTC(), actualDeadline.UTC())
 		}
 	})
 
 	r := &http.Request{Header: make(map[string][]string)}
-	r.Header.Set(DeadlineHeaderKey, expectedDeadline.Format(time.RFC3339Nano))
+	r.Header.Set(DeadlineHeaderKey, strconv.FormatInt(expectedDeadline.Unix(), 10))
 
 	DeadlineHandler(h).ServeHTTP(httptest.NewRecorder(), r)
+	if !handlerWasCalled {
+		t.Error(testName + ": Expected handler to have been called")
+	}
 }
 
 func TestDeadlineHandlerWithoutHeader(t *testing.T) {
 	testName := "TestDeadlineHandlerWithoutHeader"
 
 	var expected context.Context
+	handlerWasCalled := false
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerWasCalled = true
 		if actual := r.Context(); expected != actual {
 			t.Errorf("%s: Expected context to be %v, got %v", testName, expected, actual)
 		}
@@ -92,6 +100,30 @@ func TestDeadlineHandlerWithoutHeader(t *testing.T) {
 	expected = r.Context()
 
 	DeadlineHandler(h).ServeHTTP(httptest.NewRecorder(), r)
+	if !handlerWasCalled {
+		t.Error(testName + ": Expected handler to have been called")
+	}
+}
+
+func TestDeadlineHandlerWithBadHeader(t *testing.T) {
+	testName := "TestDeadlineHandlerWithBadHeader"
+
+	handlerWasCalled := false
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerWasCalled = true
+	})
+
+	r := &http.Request{Header: make(map[string][]string)}
+	r.Header.Set(DeadlineHeaderKey, "foobar")
+	rec := httptest.NewRecorder()
+
+	DeadlineHandler(h).ServeHTTP(rec, r)
+	if handlerWasCalled {
+		t.Error(testName + ": Did not expect handler to be called")
+	}
+	if expected, actual := http.StatusBadRequest, rec.Code; expected != actual {
+		t.Errorf("%s: Expected code to be %d, got %d", testName, expected, actual)
+	}
 }
 
 func stringSlicesAreEqual(first, second []string) bool {
